@@ -70,7 +70,7 @@ async def upload_file(
     db.commit()
     db.refresh(file_record)
     
-    return MessageResponse(message=f"File uploaded successfully. File ID: {file_record.id}")
+    return MessageResponse(message=f"File uploaded successfully. File ID: {file_record.id}", status_code=201)
 
 
 @get("/list")

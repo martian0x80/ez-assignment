@@ -7,6 +7,7 @@ This script demonstrates the complete workflow of the API
 import requests
 import json
 import os
+import time
 from io import BytesIO
 
 
@@ -15,6 +16,8 @@ class FileSharingDemo:
         self.base_url = base_url
         self.ops_token = None
         self.client_token = None
+        # Add timestamp to make credentials unique for each run
+        self.timestamp = int(time.time())
         
     def print_step(self, step, description):
         """Print a formatted step"""
@@ -27,18 +30,29 @@ class FileSharingDemo:
         self.print_step(1, "Creating Ops User")
         
         data = {
-            "email": "ops@demo.com",
-            "username": "ops_demo",
+            "email": f"ops{self.timestamp}@demo.com",
+            "username": f"ops_demo_{self.timestamp}",
             "password": "demo123",
             "user_type": "ops"
         }
         
         response = requests.post(f"{self.base_url}/auth/create-ops-user", json=data)
         
-        if response.status_code == 200:
+        if 200 <= response.status_code < 300:
+            result = response.json()
             print("✅ Ops user created successfully")
             print(f"   Email: {data['email']}")
             print(f"   Username: {data['username']}")
+            print(f"   User ID: {result.get('user_id')}")
+        elif response.status_code == 400:
+            error_data = response.json()
+            if "already exists" in error_data.get('detail', ''):
+                print("ℹ️  Ops user already exists, continuing with demo...")
+                print(f"   Email: {data['email']}")
+                print(f"   Username: {data['username']}")
+            else:
+                print(f"❌ Failed to create Ops user: {response.text}")
+                return False
         else:
             print(f"❌ Failed to create Ops user: {response.text}")
             return False
@@ -50,19 +64,30 @@ class FileSharingDemo:
         self.print_step(2, "Creating Client User")
         
         data = {
-            "email": "client@demo.com",
-            "username": "client_demo",
+            "email": f"client{self.timestamp}@demo.com",
+            "username": f"client_demo_{self.timestamp}",
             "password": "demo123",
             "user_type": "client"
         }
         
         response = requests.post(f"{self.base_url}/auth/signup", json=data)
         
-        if response.status_code == 200:
+        if 200 <= response.status_code < 300:
+            result = response.json()
             print("✅ Client user created successfully")
             print(f"   Email: {data['email']}")
             print(f"   Username: {data['username']}")
+            print(f"   User ID: {result.get('user_id')}")
             print("   📧 Check console for verification token")
+        elif response.status_code == 400:
+            error_data = response.json()
+            if "already exists" in error_data.get('detail', ''):
+                print("ℹ️  Client user already exists, continuing with demo...")
+                print(f"   Email: {data['email']}")
+                print(f"   Username: {data['username']}")
+            else:
+                print(f"❌ Failed to create Client user: {response.text}")
+                return False
         else:
             print(f"❌ Failed to create Client user: {response.text}")
             return False
@@ -74,16 +99,18 @@ class FileSharingDemo:
         self.print_step(3, "Logging in as Ops User")
         
         data = {
-            "email": "ops@demo.com",
+            "email": f"ops{self.timestamp}@demo.com",
             "password": "demo123"
         }
         
         response = requests.post(f"{self.base_url}/auth/login", json=data)
         
-        if response.status_code == 200:
-            self.ops_token = response.json()["access_token"]
+        if 200 <= response.status_code < 300:
+            result = response.json()
+            self.ops_token = result["access_token"]
             print("✅ Ops user logged in successfully")
             print(f"   Token: {self.ops_token[:20]}...")
+            print(f"   Token type: {result.get('token_type', 'bearer')}")
         else:
             print(f"❌ Failed to login Ops user: {response.text}")
             return False
@@ -95,16 +122,18 @@ class FileSharingDemo:
         self.print_step(4, "Logging in as Client User")
         
         data = {
-            "email": "client@demo.com",
+            "email": f"client{self.timestamp}@demo.com",
             "password": "demo123"
         }
         
         response = requests.post(f"{self.base_url}/auth/login", json=data)
         
-        if response.status_code == 200:
-            self.client_token = response.json()["access_token"]
+        if 200 <= response.status_code < 300:
+            result = response.json()
+            self.client_token = result["access_token"]
             print("✅ Client user logged in successfully")
             print(f"   Token: {self.client_token[:20]}...")
+            print(f"   Token type: {result.get('token_type', 'bearer')}")
         else:
             print(f"❌ Failed to login Client user: {response.text}")
             print("   Note: Client users need email verification first")
@@ -130,9 +159,10 @@ class FileSharingDemo:
         
         response = requests.post(f"{self.base_url}/files/upload", files=files, headers=headers)
         
-        if response.status_code == 200:
+        if 200 <= response.status_code < 300:
+            result = response.json()
             print("✅ File uploaded successfully")
-            print(f"   Response: {response.json()}")
+            print(f"   Message: {result.get('message', 'File uploaded')}")
         else:
             print(f"❌ Failed to upload file: {response.text}")
             return False
@@ -151,12 +181,19 @@ class FileSharingDemo:
         
         response = requests.get(f"{self.base_url}/files/list", headers=headers)
         
-        if response.status_code == 200:
+        if 200 <= response.status_code < 300:
             data = response.json()
             print("✅ Files listed successfully")
-            print(f"   Total files: {data['total']}")
-            for file in data['files']:
-                print(f"   - {file['original_filename']} (ID: {file['id']})")
+            print(f"   Total files: {data.get('total', 0)}")
+            
+            files = data.get('files', [])
+            if files:
+                for file in files:
+                    print(f"   - {file.get('original_filename', 'Unknown')} (ID: {file.get('id', 'N/A')})")
+                    print(f"     Size: {file.get('file_size', 0)} bytes")
+                    print(f"     Type: {file.get('file_type', 'Unknown')}")
+            else:
+                print("   No files found")
         else:
             print(f"❌ Failed to list files: {response.text}")
             return False
@@ -176,11 +213,12 @@ class FileSharingDemo:
         # Get download link for the first file (assuming file ID 1)
         response = requests.get(f"{self.base_url}/files/download/1", headers=headers)
         
-        if response.status_code == 200:
+        if 200 <= response.status_code < 300:
             data = response.json()
             print("✅ Download link generated successfully")
-            print(f"   Download link: {data['download_link']}")
-            return data['download_link']
+            print(f"   Download link: {data.get('download_link', 'N/A')}")
+            print(f"   Message: {data.get('message', 'success')}")
+            return data.get('download_link')
         else:
             print(f"❌ Failed to get download link: {response.text}")
             return None
@@ -195,7 +233,7 @@ class FileSharingDemo:
         
         response = requests.get(download_link)
         
-        if response.status_code == 200:
+        if 200 <= response.status_code < 300:
             print("✅ File downloaded successfully")
             print(f"   Content length: {len(response.content)} bytes")
             print(f"   Content preview: {response.content[:50]}...")
@@ -234,7 +272,7 @@ class FileSharingDemo:
         
         try:
             # Test if server is running
-            response = requests.get(f"{self.base_url}/docs")
+            response = requests.get(f"{self.base_url}/")
             if response.status_code != 200:
                 print(f"❌ Server is not running at {self.base_url}")
                 print("   Please start the server first: python -m app.main")

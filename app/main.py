@@ -1,4 +1,4 @@
-from litestar import Litestar
+from litestar import Litestar, get
 from litestar.config.cors import CORSConfig
 from litestar.contrib.pydantic import PydanticInitPlugin
 from app.routes.auth import auth_router
@@ -10,9 +10,13 @@ from app.config import settings
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
+@get("/")
+async def root() -> dict:
+    return {"message": "Hello, World!"}
+
 # Create Litestar app
 app = Litestar(
-    route_handlers=[auth_router, files_router],
+    route_handlers=[root, auth_router, files_router],
     plugins=[PydanticInitPlugin(validate_strict=True)],
     cors_config=CORSConfig(
             allow_origins=["*"],
