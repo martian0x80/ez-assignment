@@ -312,14 +312,6 @@ alembic upgrade head
 alembic downgrade -1
 ```
 
-### Using Make (Auto-detects UV or pip)
-```bash
-# Apply migrations
-make migrate
-
-# Create new migration
-make migrate-create
-```
 
 ## Production Deployment
 
